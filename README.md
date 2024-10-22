@@ -77,6 +77,7 @@ gcloud storage buckets add-iam-policy-binding ${GCS_BUCKET} \
 ```shell
 gradle run --args="\
 --inputText='some demo text' \
+--pubSubSubscription=${SUBSCRIPTION_ID} \
 --runner='DataflowRunner' \
 --project=${GCP_PROJECT_ID} \
 --region=${GCP_DATAFLOW_REGION} \
