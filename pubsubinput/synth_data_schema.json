@@ -1,0 +1,7 @@
+{
+  "weatherSensorId": "{{uuid()}}",
+  "sensorHealthy": "{{bool()}}",
+  "temperatureCelcius": "{{integer(-10,40)}}",
+  "location": "{{random("Belfast","Edinburgh","Cardiff", "London")}}",
+  "weatherSensorIpAddress": "{{ipv6()}}"
+}

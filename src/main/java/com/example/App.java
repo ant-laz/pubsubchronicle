@@ -41,20 +41,10 @@ public class App {
 
   // For custom command line options
   public interface MyAppOptions extends PipelineOptions {
-    @Description("Input text to print.")
+    @Description("Input text")
     String getInputText();
     void setInputText(String value);
   }
-
-  // public static PCollection<String> buildPipeline(Pipeline pipeline, String inputText) {
-  //   return pipeline
-  //       .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
-  //       .apply("Print elements",
-  //           MapElements.into(TypeDescriptors.strings()).via(x -> {
-  //             System.out.println(x);
-  //             return x;
-  //           }));
-  // }
 
   static class ComputeWordLengthFn extends DoFn<String, Integer> {
     @ProcessElement
@@ -71,7 +61,7 @@ public class App {
   public static void main(String[] args) {
     // Initialize the pipeline options
     PipelineOptionsFactory.register(MyAppOptions.class);
-    PipelineOptions myOptions = PipelineOptionsFactory
+    MyAppOptions myOptions = PipelineOptionsFactory
         .fromArgs(args)
         .withValidation()
         .as(MyAppOptions.class);
@@ -82,11 +72,19 @@ public class App {
     // create an input PCollection
     PCollection<String> words = pipeline.apply(
         "Create words for input",
-        Create.of(Arrays.asList("Hello", "World!"))
+        Create.of(Arrays.asList("Hello", "World!", myOptions.getInputText()))
     );
 
     // calculate the length of each word
     words.apply(ParDo.of(new ComputeWordLengthFn()));
+
+    //TODO::ReadInFromPub/Sub
+
+    //TODO::TransformPub/Sub content into Chronicle format
+
+    //TODO::output#1 - Write out to Pub/Sub with push subscription into Chronicle
+
+    //TODO::output#2 - Write to Chronicle API
 
     //execute the pipeline
     pipeline.run().waitUntilFinish();
