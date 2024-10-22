@@ -28,20 +28,32 @@ gradle run --args="\
 
 ## Deploying to Dataflow
 
+### Documentation
+
+https://cloud.google.com/dataflow/docs/quickstarts/create-pipeline-java
+
 ### create a Google Cloud environment
 
 environment variables 
 
+See here for valid dataflow locations
+https://cloud.google.com/dataflow/docs/resources/locations
+
 ```sh
 export GCP_PROJECT_ID=$(gcloud config list core/project --format="value(core.project)")
 export GCP_PROJECT_NUM=$(gcloud projects describe $GCP_PROJECT_ID --format="value(projectNumber)")
+export CURRENT_USER=$(gcloud config list account --format "value(core.account)")
 export GCP_BUCKET_REGION="US"
 export GCP_DATAFLOW_REGION="us-east4"
 export GCS_BUCKET=gs://${GCP_PROJECT_ID}-pubsubchronicle
 export GCS_BUCKET_TMP=${GCS_BUCKET}/tmp/
 export GCS_BUCKET_INPUT=${GCS_BUCKET}/input
 export GCS_BUCKET_OUTPUT=${GCS_BUCKET}/output
-export EMAIL_ADDRESS=your_email@domain.com
+```
+
+enable apis
+```shell
+gcloud services enable dataflow compute_component logging storage_component storage_api bigquery pubsub datastore.googleapis.com cloudresourcemanager.googleapis.com
 ```
 
 create a bucket
@@ -61,8 +73,11 @@ gcloud storage buckets add-iam-policy-binding ${GCS_BUCKET} \
 gradle run --args="\
 --inputText='some demo text' \
 --runner='DataflowRunner' \
---project=<YOUR_GCP_PROJECT_ID> \-
--region=<GCP_REGION> \
---tempLocation=gs://<YOUR_GCS_BUCKET>/temp/ \
---output=gs://<YOUR_GCS_BUCKET>/output"
+--project=${GCP_PROJECT_ID} \
+--region=${GCP_DATAFLOW_REGION} \
+--tempLocation=${GCS_BUCKET_TMP}"
 ```
+
+## Creating synthetic pub/sub messages
+
+asdf

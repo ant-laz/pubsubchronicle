@@ -23,17 +23,17 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 public class App {
-  public interface Options extends StreamingOptions {
+  public interface MyOptions extends PipelineOptions {
     @Description("Input text to print.")
     @Default.String("My input text")
     String getInputText();
-
     void setInputText(String value);
   }
 
@@ -48,9 +48,9 @@ public class App {
   }
 
   public static void main(String[] args) {
-    var options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    var pipeline = Pipeline.create(options);
-    App.buildPipeline(pipeline, options.getInputText());
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
+    Pipeline pipeline = Pipeline.create(options);
+    App.buildPipeline(pipeline, "test");
     pipeline.run().waitUntilFinish();
   }
 }
