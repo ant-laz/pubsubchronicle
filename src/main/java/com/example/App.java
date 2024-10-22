@@ -25,32 +25,70 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class App {
-  public interface MyOptions extends PipelineOptions {
+  // https://cloud.google.com/dataflow/docs/guides/logging
+  // Instantiate Logger
+  private static final Logger LOG = LoggerFactory.getLogger(App.class);
+
+  // For custom command line options
+  public interface MyAppOptions extends PipelineOptions {
     @Description("Input text to print.")
-    @Default.String("My input text")
     String getInputText();
     void setInputText(String value);
   }
 
-  public static PCollection<String> buildPipeline(Pipeline pipeline, String inputText) {
-    return pipeline
-        .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
-        .apply("Print elements",
-            MapElements.into(TypeDescriptors.strings()).via(x -> {
-              System.out.println(x);
-              return x;
-            }));
+  // public static PCollection<String> buildPipeline(Pipeline pipeline, String inputText) {
+  //   return pipeline
+  //       .apply("Create elements", Create.of(Arrays.asList("Hello", "World!", inputText)))
+  //       .apply("Print elements",
+  //           MapElements.into(TypeDescriptors.strings()).via(x -> {
+  //             System.out.println(x);
+  //             return x;
+  //           }));
+  // }
+
+  static class ComputeWordLengthFn extends DoFn<String, Integer> {
+    @ProcessElement
+    public void processElement(@Element String word, OutputReceiver<Integer> out) {
+      // "@Element" is used by BeamSDK to pass each member of input PCollection to param "word"
+      // "OutputReceiver" is from BeamSDK and is what we populate with DoFns output, per element
+      out.output(word.length());
+
+      // Demo of using Log
+      LOG.info("Found word = " + word);
+    }
   }
 
   public static void main(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(MyOptions.class);
-    Pipeline pipeline = Pipeline.create(options);
-    App.buildPipeline(pipeline, "test");
+    // Initialize the pipeline options
+    PipelineOptionsFactory.register(MyAppOptions.class);
+    PipelineOptions myOptions = PipelineOptionsFactory
+        .fromArgs(args)
+        .withValidation()
+        .as(MyAppOptions.class);
+
+    // create the main pipeline
+    Pipeline pipeline = Pipeline.create(myOptions);
+
+    // create an input PCollection
+    PCollection<String> words = pipeline.apply(
+        "Create words for input",
+        Create.of(Arrays.asList("Hello", "World!"))
+    );
+
+    // calculate the length of each word
+    words.apply(ParDo.of(new ComputeWordLengthFn()));
+
+    //execute the pipeline
     pipeline.run().waitUntilFinish();
   }
 }
