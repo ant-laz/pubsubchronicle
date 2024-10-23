@@ -50,9 +50,10 @@ export GCS_BUCKET=gs://${GCP_PROJECT_ID}-${PROJECT_NAME}
 export GCS_BUCKET_TMP=${GCS_BUCKET}/tmp/
 export GCS_BUCKET_INPUT=${GCS_BUCKET}/input
 export GCS_BUCKET_OUTPUT=${GCS_BUCKET}/output
-export GCS_BUCKET_PUBSUB_INPUT=${GCS_BUCKET}/pubsubinput/
+export GCS_BUCKET_PUBSUB_INPUT=${GCS_BUCKET}/pubsubinput
 export PUB_SUB_TOPIC=projects/${GCP_PROJECT_ID}/topics/${PROJECT_NAME}
 export PUB_SUB_SUBSCRIPTION=${PROJECT_NAME}-sub
+export PUB_SUB_SUBSCRIPTION_DEBUG=${PROJECT_NAME}-sub-debug
 export SUBSCRIPTION_ID=projects/${GCP_PROJECT_ID}/subscriptions/${PUB_SUB_SUBSCRIPTION}
 ```
 
@@ -76,15 +77,15 @@ gcloud storage buckets add-iam-policy-binding ${GCS_BUCKET} \
 
 ```shell
 gradle run --args="\
---inputText='some demo text' \
 --pubSubSubscription=${SUBSCRIPTION_ID} \
 --runner='DataflowRunner' \
 --project=${GCP_PROJECT_ID} \
 --region=${GCP_DATAFLOW_REGION} \
+--experiments=enable_data_sampling \
 --tempLocation=${GCS_BUCKET_TMP}"
 ```
 
-## Creating synthetic pub/sub messages
+### Creating synthetic pub/sub messages
 
 Create a pub/sub topic to contain our synthetic input data
 ```shell
@@ -126,10 +127,39 @@ gcloud dataflow flex-template run gen-synth-weather-readings \
     --region=${GCP_DATAFLOW_REGION} \
     --template-file-gcs-location=gs://dataflow-templates-${GCP_DATAFLOW_REGION}/latest/flex/Streaming_Data_Generator \
     --parameters \
-schemaLocation=${GCS_BUCKET_PUBSUB_INPUT}/syth_data_schema.json,\
+schemaLocation=${GCS_BUCKET_PUBSUB_INPUT}/synth_data_schema.json,\
 qps=1,\
 sinkType=PUBSUB,\
 outputType=JSON,\
 messagesLimit=10,\
 topic=${PUB_SUB_TOPIC}
 ```
+
+inspecting synthetic data has been created successfully
+
+create a debug subscription
+```shell
+gcloud pubsub subscriptions create ${PUB_SUB_SUBSCRIPTION_DEBUG} --topic=${PUB_SUB_TOPIC}
+```
+
+inspect message through the subscription
+```shell
+gcloud pubsub subscriptions pull ${PUB_SUB_SUBSCRIPTION_DEBUG} --auto-ack
+```
+
+One example of a generated message is 
+```shell
+{
+  "weatherSensorId": "6aa61c30-c60c-4267-9094-ac59582275ee",
+  "sensorHealthy": "false",
+  "temperatureCelcius": "16",
+  "location": "Belfast",
+  "weatherSensorIpAddress": "d801:73a6:ed22:397d:3001:c94c:39d5:76c4"
+}
+```
+
+
+### Schemas 
+@DefaultSchema
+@AutoValue
+Jackson?

@@ -14,10 +14,13 @@
 
 package com.example;
 
+import com.google.cloud.pubsublite.proto.PubSubMessage;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -31,17 +34,14 @@ import org.slf4j.LoggerFactory;
 
 public class App {
 
+  // ---------   LOGGER ----------------------------------------------------------------------------
   // https://cloud.google.com/dataflow/docs/guides/logging
   // Instantiate Logger
   private static final Logger LOG = LoggerFactory.getLogger(App.class);
 
+  // ---------   COMMAND LINE OPTIONS --------------------------------------------------------------
   // For custom command line options
   public interface MyAppOptions extends PipelineOptions {
-
-    @Description("Input text")
-    String getInputText();
-
-    void setInputText(String value);
 
     @Description("Input Pub/Sub subscription to read from")
     String getPubSubSubscription();
@@ -49,19 +49,23 @@ public class App {
     void setPubSubSubscription(String subSubscription);
   }
 
-  static class ComputeWordLengthFn extends DoFn<String, Integer> {
+  // ---------   DoFn ------------------------------------------------------------------------------
+  static class TransformPubSubToChonicle extends DoFn<PubsubMessage, String> {
 
     @ProcessElement
-    public void processElement(@Element String word, OutputReceiver<Integer> out) {
-      // "@Element" is used by BeamSDK to pass each member of input PCollection to param "word"
+    public void processElement(@Element PubsubMessage msg, OutputReceiver<String> out){
+      // "@Element" is used by BeamSDK to pass each member of input PCollection to param "msg"
       // "OutputReceiver" is from BeamSDK and is what we populate with DoFns output, per element
-      out.output(word.length());
+      out.output(msg.toString());
 
-      // Demo of using Log
-      LOG.info("Found word = " + word);
+      // Log
+      //LOG.info("String representation of message = " + msg.toString());
+      LOG.info("Payload of message = " + new String(msg.getPayload(), StandardCharsets.UTF_8 ));
+
     }
   }
 
+  // ---------   Pipeline---------------------------------------------------------------------------
   public static void main(String[] args) {
     // Initialize the pipeline options
     PipelineOptionsFactory.register(MyAppOptions.class);
@@ -73,18 +77,20 @@ public class App {
     // create the main pipeline
     Pipeline pipeline = Pipeline.create(myOptions);
 
-    // create an input PCollection
-    PCollection<String> words = pipeline.apply(
-        "Create words for input",
-        Create.of(Arrays.asList("Hello", "World!", myOptions.getInputText()))
-    );
 
-    // calculate the length of each word
-    words.apply(ParDo.of(new ComputeWordLengthFn()));
+    // Read messages from Pub/Sub Subscription
+    // As per https://cloud.google.com/pubsub/docs/publish-message-overview#about-messages
+    // 1 Message in Pub/Sub has
+    //   1 x message data
+    //   1 x ordering key
+    //   * x attributes
+    //   1 x message ID
+    //   1 x timestamp
+    PCollection<PubsubMessage> msgs = pipeline.apply("ReadFromPubSubSubscription",
+        PubsubIO.readMessagesWithAttributes().fromSubscription(myOptions.getPubSubSubscription()));
 
-    //TODO::ReadInFrom Pub/Sub
-    PCollection<String> pubsub = pipeline.apply("ReadFromPubSub",
-        PubsubIO.readStrings().fromSubscription(myOptions.getPubSubSubscription()));
+    // Get the payload of message from Pub/Sub
+    PCollection<String> payloads = msgs.apply(ParDo.of(new TransformPubSubToChonicle()));
 
     //TODO::Transform Pub/Sub content into Chronicle format
 
